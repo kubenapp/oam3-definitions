@@ -1,0 +1,119 @@
+apiVersion: core.oam.dev/v1beta1
+kind: ComponentDefinition
+metadata:
+  annotations:
+    definition.oam.dev/description: Describes a copmonennt to manage stateful applications. 
+  name: statefulservice
+  namespace: vela-system  
+spec:
+  schematic:
+    cue:
+      template: |        
+        output: {
+        	apiVersion: "apps/v1"
+        	kind:       "StatefulSet"
+          metadata: {
+            name: context.name
+            labels: {
+              app: context.name
+            }
+          }
+        	spec: {
+        		selector: matchLabels: app: context.name
+            serviceName: context.name  
+            replicas: parameter.replicas          
+        		template: {
+        			metadata: {
+                labels: {
+                  app:     context.name
+                }            
+              }
+              spec: {
+        				containers: [{
+        					name:  context.name
+        					image: parameter.image
+        					
+                  if parameter["env"] != _|_ {
+        						env: parameter.env
+        					}
+
+                  if parameter["volumeMounts"] != _|_ {
+        						volumeMounts: [ for v in parameter.volumeMounts {
+        							{
+        								name: v.name
+        								mountPath: v.mountPath        								
+        							}}]
+        					}
+        				}]
+                if parameter["volumeMounts"] != _|_ {
+                  volumes: [ for v in parameter.volumeMounts {
+                    {
+                      name: v.name
+                      emptyDir: {}
+                    }}]
+        				}
+        			}
+        		}
+        	}
+        } 
+        outputs: {
+          if parameter["port"] != _|_ {
+            web: {
+              apiVersion: "v1"
+              kind:       "Service"
+              metadata: {
+                name: context.name
+                labels: app: context.name
+              }
+              spec: {
+                clusterIP: "None"
+                ports: [{
+                  name: "web"
+                  port: parameter.port
+                }]
+                selector: app: context.name
+              }
+            }
+          }
+        }
+    
+        parameter: {
+        	// +usage=Specify the labels in the workload
+        	labels?: [string]: string
+
+        	// +usage=Specify the annotations in the workload
+        	annotations?: [string]: string
+
+        	// +usage=Which image would you like to use for your service
+        	// +short=i
+        	image: string
+
+        	// +usage=Specify image pull policy for your service
+        	imagePullPolicy?: "Always" | "Never" | "IfNotPresent"
+
+        	// +usage=Define the required replicas
+          replicas: int
+
+        	// +usage=Define the exposed port
+          port?: int
+
+        	// +usage=Define arguments by using environment variables
+        	env?: [...{
+        		// +usage=Environment variable name
+        		name: string
+        		// +usage=The value of the environment variable
+        		value: string
+        	}]
+          // + usage=Define an emptyDir
+          volumeMounts?: [...{
+        			name:      string
+        			mountPath: string
+        	}]
+
+        }      	        
+  workload:
+    definition:
+      apiVersion: apps/v1
+      kind: StatefulSet
+    type: statefulsets.apps
+
