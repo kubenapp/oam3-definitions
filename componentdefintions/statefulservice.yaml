@@ -15,7 +15,8 @@ spec:
           metadata: {
             name: context.name
             labels: {
-              app: context.name
+              app: context.appName
+              component: context.name
               "app.oam.dev/component": context.name
               "app.oam.dev/name":      context.appName
             }
