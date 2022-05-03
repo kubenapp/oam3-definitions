@@ -16,7 +16,6 @@ spec:
             name: context.name
             labels: {
               app: context.name
-              "app.oam.dev/component": context.name
             }
           }
         	spec: {
