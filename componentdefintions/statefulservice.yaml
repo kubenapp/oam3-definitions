@@ -3,7 +3,7 @@ kind: ComponentDefinition
 metadata:
   annotations:
     definition.oam.dev/description: Describes a component to manage stateful applications. 
-  name: statefulservice2
+  name: statefulservice
   namespace: vela-system  
 spec:
   schematic:
@@ -16,6 +16,8 @@ spec:
             name: context.name
             labels: {
               app: context.name
+              "app.oam.dev/component": context.name
+              "app.oam.dev/name":      context.appName
             }
           }
         	spec: {
@@ -26,6 +28,8 @@ spec:
         			metadata: {
                 labels: {
                   app:     context.name
+                  "app.oam.dev/name":      context.appName
+                  "app.oam.dev/component": context.name
                 }            
               }
               spec: {
