@@ -2,7 +2,7 @@ apiVersion: core.oam.dev/v1beta1
 kind: ComponentDefinition
 metadata:
   annotations:
-    definition.oam.dev/description: Describes a copmonennt to manage stateful applications. 
+    definition.oam.dev/description: Describes a component to manage stateful applications. 
   name: statefulservice
   namespace: vela-system  
 spec:
