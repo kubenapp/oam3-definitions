@@ -8,7 +8,116 @@ metadata:
 spec:
   schematic:
     cue:
-      template: |        
+      template: |    
+        import (
+        	"strconv" 
+        )
+
+        mountsArray: {
+        	pvc: *[
+        		for v in parameter.volumeMounts.pvc {
+        			{
+        				mountPath: v.mountPath
+        				name:      v.name
+        			}
+        		},
+        	] | []
+
+        	configMap: *[
+        			for v in parameter.volumeMounts.configMap {
+        			{
+        				mountPath: v.mountPath
+        				name:      v.name
+        			}
+        		},
+        	] | []
+
+        	secret: *[
+        		for v in parameter.volumeMounts.secret {
+        			{
+        				mountPath: v.mountPath
+        				name:      v.name
+        			}
+        		},
+        	] | []
+
+        	emptyDir: *[
+        			for v in parameter.volumeMounts.emptyDir {
+        			{
+        				mountPath: v.mountPath
+        				name:      v.name
+        			}
+        		},
+        	] | []
+
+        	hostPath: *[
+        			for v in parameter.volumeMounts.hostPath {
+        			{
+        				mountPath: v.mountPath
+        				name:      v.name
+        			}
+        		},
+        	] | []
+        }
+        volumesArray: {
+        	pvc: *[
+        		for v in parameter.volumeMounts.pvc {
+        			{
+        				name: v.name
+        				persistentVolumeClaim: claimName: v.claimName
+        			}
+        		},
+        	] | []
+
+        	configMap: *[
+        			for v in parameter.volumeMounts.configMap {
+        			{
+        				name: v.name
+        				configMap: {
+        					defaultMode: v.defaultMode
+        					name:        v.cmName
+        					if v.items != _|_ {
+        						items: v.items
+        					}
+        				}
+        			}
+        		},
+        	] | []
+
+        	secret: *[
+        		for v in parameter.volumeMounts.secret {
+        			{
+        				name: v.name
+        				secret: {
+        					defaultMode: v.defaultMode
+        					secretName:  v.secretName
+        					if v.items != _|_ {
+        						items: v.items
+        					}
+        				}
+        			}
+        		},
+        	] | []
+
+        	emptyDir: *[
+        			for v in parameter.volumeMounts.emptyDir {
+        			{
+        				name: v.name
+        				emptyDir: medium: v.medium
+        			}
+        		},
+        	] | []
+
+        	hostPath: *[
+        			for v in parameter.volumeMounts.hostPath {
+        			{
+        				name: v.name
+        				hostPath: path: v.path
+        			}
+        		},
+        	] | []
+        }
+
         output: {
         	apiVersion: "apps/v1"
         	kind:       "StatefulSet"
@@ -37,51 +146,83 @@ spec:
         				containers: [{
         					name:  context.name
         					image: parameter.image
+                  
+                  if parameter["imagePullPolicy"] != _|_ {
+                  	imagePullPolicy: parameter.imagePullPolicy
+                  }
+
+        					if parameter["ports"] != _|_ {
+        						ports: [ for v in parameter.ports {
+        							{
+        								containerPort: v.port
+        								protocol:      v.protocol
+        								if v.name != _|_ {
+        									name: v.name
+        								}
+        								if v.name == _|_ {
+        									name: "port-" + strconv.FormatInt(v.port, 10)
+        								}
+        							}}]
+        					}
         					
                   if parameter["env"] != _|_ {
         						env: parameter.env
         					}
 
-                  if parameter["volumeMounts"] != _|_ {
-        						volumeMounts: [ for v in parameter.volumeMounts {
-        							{
-        								name: v.name
-        								mountPath: v.mountPath        								
-        							}}]
+        					if parameter["cpu"] != _|_ {
+        						resources: {
+        							limits: cpu:   parameter.cpu
+        							requests: cpu: parameter.cpu
+        						}
+        					}
+
+        					if parameter["memory"] != _|_ {
+        						resources: {
+        							limits: memory:   parameter.memory
+        							requests: memory: parameter.memory
+        						}
+        					}
+
+        					if parameter["volumeMounts"] != _|_ {
+        						volumeMounts: mountsArray.pvc + mountsArray.configMap + mountsArray.secret + mountsArray.emptyDir + mountsArray.hostPath
         					}
         				}]
+
                 if parameter["volumeMounts"] != _|_ {
-                  volumes: [ for v in parameter.volumeMounts {
-                    {
-                      name: v.name
-                      emptyDir: {}
-                    }}]
-        				}
+                  volumes: volumesArray.pvc + volumesArray.configMap + volumesArray.secret + volumesArray.emptyDir + volumesArray.hostPath
+                }
         			}
         		}
+            
         	}
         } 
+        exposePorts: [
+        	for v in parameter.ports if v.expose == true {
+        		port:       v.port
+        		targetPort: v.port
+        		if v.name != _|_ {
+        			name: v.name
+        		}
+            if v.name == _|_ {
+        			name: "port-" + strconv.FormatInt(v.port, 10)
+        		}        		
+        	},
+        ]
         outputs: {
-          if parameter["port"] != _|_ {
-            web: {
+          if len(exposePorts) != 0 {
+            service: {
               apiVersion: "v1"
               kind:       "Service"
-              metadata: {
-                name: context.name
-                labels: app: context.name
-              }
+              metadata: name: context.name
               spec: {
-                clusterIP: "None"
-                ports: [{
-                  name: "web"
-                  port: parameter.port
-                }]
                 selector: app: context.name
+                ports: exposePorts
+                clusterIP: "None"
               }
-            }
-          }
-        }
-    
+            }  
+            }  
+        }  
+  
         parameter: {
         	// +usage=Specify the labels in the workload
         	labels?: [string]: string
@@ -99,26 +240,74 @@ spec:
         	// +usage=Define the required replicas
           replicas: int
 
-        	// +usage=Define the exposed port
-          port?: int
+          ports?: [...{
+            port: int
+            name?: string
+            protocol: *"TCP" | "UDP" | "SCTP"
+          }]
 
-        	// +usage=Define arguments by using environment variables
+          // +usage=Define arguments by using environment variables
         	env?: [...{
         		// +usage=Environment variable name
         		name: string
         		// +usage=The value of the environment variable
         		value: string
         	}]
-          // + usage=Define an emptyDir
-          volumeMounts?: [...{
+
+        	volumeMounts?: {
+        		// +usage=Mount PVC type volume
+        		pvc?: [...{
         			name:      string
         			mountPath: string
-        	}]
+        			// +usage=The name of the PVC
+        			claimName: string
+        		}]
+        		// +usage=Mount ConfigMap type volume
+        		configMap?: [...{
+        			name:        string
+        			mountPath:   string
+        			defaultMode: *420 | int
+        			cmName:      string
+        			items?: [...{
+        				key:  string
+        				path: string
+        				mode: *511 | int
+        			}]
+        		}]
+        		// +usage=Mount Secret type volume
+        		secret?: [...{
+        			name:        string
+        			mountPath:   string
+        			defaultMode: *420 | int
+        			secretName:  string
+        			items?: [...{
+        				key:  string
+        				path: string
+        				mode: *511 | int
+        			}]
+        		}]
+        		// +usage=Mount EmptyDir type volume
+        		emptyDir?: [...{
+        			name:      string
+        			mountPath: string
+        			medium:    *"" | "Memory"
+        		}]
+        		// +usage=Mount HostPath type volume
+        		hostPath?: [...{
+        			name:      string
+        			mountPath: string
+        			path:      string
+        		}]
+        	}
 
+        	cpu?: string
+        	
+        	memory?: string
+        	
+        	imagePullPolicy?: "Always" | "Never" | "IfNotPresent"					
         }      	        
   workload:
     definition:
       apiVersion: apps/v1
       kind: StatefulSet
     type: statefulsets.apps
-
