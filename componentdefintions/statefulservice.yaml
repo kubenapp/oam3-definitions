@@ -12,7 +12,6 @@ spec:
         import (
         	"strconv" 
         )
-
         mountsArray: {
         	pvc: *[
         		for v in parameter.volumeMounts.pvc {
@@ -22,7 +21,6 @@ spec:
         			}
         		},
         	] | []
-
         	configMap: *[
         			for v in parameter.volumeMounts.configMap {
         			{
@@ -31,7 +29,6 @@ spec:
         			}
         		},
         	] | []
-
         	secret: *[
         		for v in parameter.volumeMounts.secret {
         			{
@@ -40,7 +37,6 @@ spec:
         			}
         		},
         	] | []
-
         	emptyDir: *[
         			for v in parameter.volumeMounts.emptyDir {
         			{
@@ -49,7 +45,6 @@ spec:
         			}
         		},
         	] | []
-
         	hostPath: *[
         			for v in parameter.volumeMounts.hostPath {
         			{
@@ -68,7 +63,6 @@ spec:
         			}
         		},
         	] | []
-
         	configMap: *[
         			for v in parameter.volumeMounts.configMap {
         			{
@@ -83,7 +77,6 @@ spec:
         			}
         		},
         	] | []
-
         	secret: *[
         		for v in parameter.volumeMounts.secret {
         			{
@@ -98,7 +91,6 @@ spec:
         			}
         		},
         	] | []
-
         	emptyDir: *[
         			for v in parameter.volumeMounts.emptyDir {
         			{
@@ -107,7 +99,6 @@ spec:
         			}
         		},
         	] | []
-
         	hostPath: *[
         			for v in parameter.volumeMounts.hostPath {
         			{
@@ -117,17 +108,26 @@ spec:
         		},
         	] | []
         }
-
         output: {
         	apiVersion: "apps/v1"
         	kind:       "StatefulSet"
           metadata: {
             name: context.name
-            labels: {
+            labels: {																			
               app: context.appName
               component: context.name
               "app.oam.dev/component": context.name
               "app.oam.dev/name":      context.appName
+              
+              if parameter.labels != _|_ {
+                parameter.labels
+              }
+              if parameter.addRevisionLabel {
+                "app.oam.dev/revision": context.revision
+              }              
+            }
+            if parameter.annotations != _|_ {
+              annotations: parameter.annotations
             }
           }
         	spec: {
@@ -150,7 +150,6 @@ spec:
                   if parameter["imagePullPolicy"] != _|_ {
                   	imagePullPolicy: parameter.imagePullPolicy
                   }
-
         					if parameter["ports"] != _|_ {
         						ports: [ for v in parameter.ports {
         							{
@@ -168,32 +167,45 @@ spec:
                   if parameter["env"] != _|_ {
         						env: parameter.env
         					}
-
         					if parameter["cpu"] != _|_ {
         						resources: {
         							limits: cpu:   parameter.cpu
         							requests: cpu: parameter.cpu
         						}
         					}
-
         					if parameter["memory"] != _|_ {
         						resources: {
         							limits: memory:   parameter.memory
         							requests: memory: parameter.memory
         						}
         					}
-
         					if parameter["volumeMounts"] != _|_ {
         						volumeMounts: mountsArray.pvc + mountsArray.configMap + mountsArray.secret + mountsArray.emptyDir + mountsArray.hostPath
         					}
         				}]
+                
+                if parameter["imagePullSecrets"] != _|_ {
+                  imagePullSecrets: [ for v in parameter.imagePullSecrets {
+                    name: v
+        					},
+        					]
+        				}
 
                 if parameter["volumeMounts"] != _|_ {
-                  volumes: volumesArray.pvc + volumesArray.configMap + volumesArray.secret + volumesArray.emptyDir + volumesArray.hostPath
+                  volumes: volumesArray.configMap + volumesArray.secret + volumesArray.emptyDir + volumesArray.hostPath
                 }
         			}
         		}
-            
+            if len(volumesArray.pvc) != 0 {
+              volumeClaimTemplates: [ for v in volumesArray.pvc {
+              {
+                metadata: name: v.name
+                spec: {
+                  accessModes: [ "ReadWriteOnce" ]
+                  resources: requests: storage: "1Gi"
+                }
+              }}] 
+            }
         	}
         } 
         exposePorts: [
@@ -210,14 +222,23 @@ spec:
         ]
         outputs: {
           if len(exposePorts) != 0 {
-            service: {
+            service-headless: {
               apiVersion: "v1"
               kind:       "Service"
-              metadata: name: context.name
+              metadata: name: context.name + "-headless"
               spec: {
                 selector: app: context.name
                 ports: exposePorts
                 clusterIP: "None"
+              }
+            }
+            service: {
+              apiVersion: "v1"
+              kind:       "Service"
+              metadata: name: context.name 
+              spec: {
+                selector: app: context.name
+                ports: exposePorts            
               }
             }  
             }  
@@ -240,6 +261,7 @@ spec:
         	// +usage=Define the required replicas
           replicas: int
 
+          // +usage=Which ports do you want customer traffic sent to,
           ports?: [...{
             port: int
             name?: string
@@ -253,6 +275,10 @@ spec:
         		// +usage=The value of the environment variable
         		value: string
         	}]
+
+          // +ignore
+        	// +usage=If addRevisionLabel is true, the revision label will be added to the underlying pods
+        	addRevisionLabel: *false | bool
 
         	volumeMounts?: {
         		// +usage=Mount PVC type volume
@@ -300,11 +326,17 @@ spec:
         		}]
         	}
 
+          // +usage=Number of CPU units for the service, like `0.5` (0.5 CPU core), `1` (1 CPU core)
         	cpu?: string
-        	
+
+        	// +usage=Specifies the attributes of the memory resource required for the container.
         	memory?: string
-        	
-        	imagePullPolicy?: "Always" | "Never" | "IfNotPresent"					
+
+        	// +usage=Specify image pull policy for your service
+        	imagePullPolicy?: "Always" | "Never" | "IfNotPresent"	
+
+        	// +usage=Specify image pull secrets for your service
+        	imagePullSecrets?: [...string]				
         }      	        
   workload:
     definition:
