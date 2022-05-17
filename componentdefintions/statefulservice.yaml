@@ -58,9 +58,9 @@ spec:
         	pvc: *[
         		for v in parameter.volumeMounts.pvc {
         			{
-        				name: v.name
-        				persistentVolumeClaim: claimName: v.claimName 
-                size: v.size                
+        				name: v.name                
+                persistentVolumeClaim: claimName: v.claimName 
+                size: v.size 
         			}
         		},
         	] | []
@@ -202,6 +202,7 @@ spec:
               {
                 metadata: name: v.name
                 spec: {
+                  accessModes: [ "ReadWriteOnce" ]
                   resources: requests: storage: v.size
                 }
               }}] 
@@ -303,7 +304,7 @@ spec:
         			name:      string
         			mountPath: string
         			// +usage=The name of the PVC
-        			claimName: string
+        			claimName?: string
               size: string
         		}]
         		// +usage=Mount ConfigMap type volume
