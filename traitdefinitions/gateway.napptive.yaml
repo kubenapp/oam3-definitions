@@ -50,11 +50,24 @@ spec:
         	secretName?: string
         }
   status:
-    customStatus: |-
-      let igs = context.outputs.ingress.status.url
-      if igs == _|_ {
-       message: "No ingress found"
+    customStatus: |- 
+      status: {
+        paramStatus: * "" | string
+        urlStatus: *"" | string
+      } & {
+        let domain = parameter.domain
+        let secret = parameter.secretName
+        if domain != _|_ || secret != _|_ {
+          paramStatus: "Parameters domain and secret not supported."
+        }
+        for value, out in context.outputs {
+          let igs = out.status.url
+          if igs == _|_ {
+            urlStatus: "No ingress found."
+          }
+          if igs != _|_ {
+            urlStatus: "URL available at: " + igs
+          }        
+        }
       }
-      if igs != _|_ {
-       message: "URL available at: " + igs
-      }
+      message: "\(status.paramStatus) \(status.urlStatus)"
