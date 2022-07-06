@@ -1,0 +1,73 @@
+apiVersion: core.oam.dev/v1beta1
+kind: TraitDefinition
+metadata:
+  annotations:
+    definition.oam.dev/description: Enable public web traffic for the component creating a NAPPTIVE ingress 
+  name: gateway
+  namespace: vela-system
+spec:
+  podDisruptive: false
+  schematic:
+    cue:
+      template: |
+        import (
+        	"strconv" 
+        )
+
+        outputs: {
+          for v, i in parameter.http {
+        		"objects-\(i)": {
+              apiVersion: "core.napptive.com/v1alpha1"
+              kind:       "Ingress"
+              metadata: name: context.name + "-" + strconv.FormatInt(i, 10) 
+              spec: {
+                selector: "app.oam.dev/component": context.name
+                name: context.name + "-" + strconv.FormatInt(i, 10)               
+                path: v
+                port: i
+                protocol: "HTTP"
+                targetServiceName: context.name
+              }
+            }
+        	}
+        }
+
+        // trait template can have multiple outputs in one trait
+        parameter: {
+        	// +usage=Specify the domain you want to expose
+        	domain?: string
+
+        	// +usage=Specify the mapping relationship between the http path and the workload port
+        	http: [string]: int
+
+        	// +usage=Specify the class of ingress to use
+        	class: *"nginx" | string
+
+        	// +usage=Set ingress class in '.spec.ingressClassName' instead of 'kubernetes.io/ingress.class' annotation.
+        	classInSpec: *false | bool
+
+        	// +usage=Specify the secret name you want to quote.
+        	secretName?: string
+        }
+  status:
+    customStatus: |- 
+      status: {
+        paramStatus: * "" | string
+        urlStatus: *"" | string
+      } & {
+        let domain = parameter.domain
+        let secret = parameter.secretName
+        if domain != _|_ || secret != _|_ {
+          paramStatus: "Parameters domain and secret not supported."
+        }
+        for value, out in context.outputs {
+          let igs = out.status.url
+          if igs == _|_ {
+            urlStatus: "No ingress found."
+          }
+          if igs != _|_ {
+            urlStatus: "URL available at: " + igs
+          }        
+        }
+      }
+      message: "\(status.paramStatus) \(status.urlStatus)"
