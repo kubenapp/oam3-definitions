@@ -52,6 +52,15 @@ spec:
         			value: ""
         		}
         	},
+        	{
+        		name: "LAUNCHER_CURRENT_WORKFLOW"
+        		if parameter.currentWorkflow != _|_ {
+        			value: parameter.currentWorkflow
+        		}
+        		if parameter.currentWorkflow == _|_ {
+        			value: ""
+        		}
+        	},
         ]
         mountsArray: {
         	pvc: *[
@@ -289,13 +298,18 @@ spec:
 
         	// +usage=Specify the annotations in the workload
         	annotations?: [string]: string
+
         	// +usage=GitHub url
         	targetRepo: string
+
         	// +usage=Secret name where the GitHub credentials are.
         	// The secret should contain two entries:
         	// username: with the GitHub username
         	// pat: with a GitHub Personal Access Token
-        	repositoryAccessTokenSecret: string
+        	repositoryAccessTokenSecret?: string
+
+        	//+usage the path of a file in the repo that contains a workflow
+        	currentWorkflow?: string
 
         	// +usage=Which image would you like to use for your service
         	// +short=i
