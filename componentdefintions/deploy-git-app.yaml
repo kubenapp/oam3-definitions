@@ -289,8 +289,12 @@ spec:
 
         	// +usage=Specify the annotations in the workload
         	annotations?: [string]: string
-
-        	targetRepo:                  string
+        	// +usage=GitHub url
+        	targetRepo: string
+        	// +usage=Secret name where the GitHub credentials are.
+        	// The secret should contain two entries:
+        	// username: with the GitHub username
+        	// pat: with a GitHub Personal Access Token
         	repositoryAccessTokenSecret: string
 
         	// +usage=Which image would you like to use for your service
