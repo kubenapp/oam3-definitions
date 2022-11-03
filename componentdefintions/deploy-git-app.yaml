@@ -45,10 +45,10 @@ spec:
         	},
         	{
         		name: "LAUNCHER_EXEC_ARGS"
-        		if parameter.cmd != _|_ {
-        			value: strings.Join(parameter.cmd, ",")
+        		if parameter.args != _|_ {
+        			value: strings.Join(parameter.args, ",")
         		}
-        		if parameter.cmd == _|_ {
+        		if parameter.args == _|_ {
         			value: ""
         		}
         	},
@@ -166,6 +166,49 @@ spec:
         		},
         	] | []
         }
+        exposePortsMap: {
+        	for v in parameter.ports {
+        		v: "true"
+        	}
+        }
+        totalPorts: {
+        	exposePorts: *[
+        			for v in parameter.ports {
+        			port:       v.port
+        			targetPort: v.port
+        			name:       "port-" + strconv.FormatInt(v.port, 10)
+        		},
+        	] | []
+
+        	exposeIngressesPorts: *[
+        				for v in parameter.ingresses {
+        			if exposePortsMap[v.targetPort] == _|_ {
+        				port:       v.targetPort
+        				targetPort: v.targetPort
+        				name:       "port-" + strconv.FormatInt(v.targetPort, 10)
+        			}
+        		},
+        	] | []
+        }
+        containerPorts: {
+        	exposePorts: *[
+        			for v in parameter.ports {
+        			containerPort: v.port
+        			protocol:      "TCP"
+        			name:          "port-" + strconv.FormatInt(v.port, 10)
+        		},
+        	] | []
+
+        	exposeIngressesPorts: *[
+        				for v in parameter.ingresses {
+        			if exposePortsMap[v.targetPort] == _|_ {
+        				containerPort: v.targetPort
+        				protocol:      "TCP"
+        				name:          "port-" + strconv.FormatInt(v.targetPort, 10)
+        			}
+        		},
+        	] | []
+        }
         output: {
         	apiVersion: "apps/v1"
         	kind:       "Deployment"
@@ -192,25 +235,20 @@ spec:
         			spec: {
         				containers: [{
         					name: context.name
-        					if parameter["language"] == "STATIC" {
+        					if parameter["language"] == "STATIC" || parameter["language"] == "static" {
         						image: "napptive/playground-launcher-static-nginx:1.23-v1.0.0"
         					}
-        					if parameter["language"] == "GOLANG" {
+        					if parameter["language"] == "GOLANG" || parameter["language"] == "golang" {
         						image: "napptive/playground-launcher-golang:1.18-v1.0.0"
         					}
-        					if parameter["language"] == "PYTHON" {
+        					if parameter["language"] == "PYTHON" || parameter["language"] == "static" {
         						image: "napptive/playground-launcher-python:3.11-v1.0.0"
         					}
-        					if parameter["language"] == "NODEJS" {
+        					if parameter["language"] == "NODEJS" || parameter["language"] == "nodejs" {
         						image: "napptive/playground-launcher-nodejs:18-v1.0.0"
         					}
-        					if parameter["ports"] != _|_ {
-        						ports: [ for v in parameter.ports {
-        							{
-        								containerPort: v.port
-        								protocol:      "TCP"
-        								name:          "port-" + strconv.FormatInt(v.port, 10)
-        							}}]
+        					if parameter["ports"] != _|_ || parameter["ingresses"] != _|_ {
+        						ports: containerPorts.exposePorts + containerPorts.exposeIngressesPorts
         					}
 
         					if parameter["env"] != _|_ {
@@ -262,23 +300,6 @@ spec:
         		}
         	}
         }
-        totalPorts: {
-        	exposePorts: *[
-        			for v in parameter.ports {
-        			port:       v.port
-        			targetPort: v.port
-        			name:       "port-" + strconv.FormatInt(v.port, 10)
-        		},
-        	] | []
-
-        	exposeIngressesPorts: *[
-        				for v in parameter.ingresses {
-        			port:       v.targetPort
-        			targetPort: v.targetPort
-        			name:       "port-" + strconv.FormatInt(v.targetPort, 10)
-        		},
-        	] | []
-        }
         outputs: {
         	if len(totalPorts.exposePorts)+len(totalPorts.exposeIngressesPorts) != 0 {
         		serviceExpose: {
@@ -328,9 +349,8 @@ spec:
         	//+usage the path of a file in the repo that contains a workflow
         	currentWorkflow?: string
 
-        	// +usage=Which image would you like to use for your service
-        	// +short=i
-        	language: *"GOLANG" | "STATIC" | "PYTHON" | "NODEJS"
+        	// +usage=application languaje
+        	language: *"GOLANG" | "golang" | "STATIC" | "static" | "PYTHON" | "python" | "NODEJS" | "nodejs"
 
         	// +usage=Which ports do you want customer traffic sent to, defaults to 80
         	ports?: [...{
@@ -347,8 +367,8 @@ spec:
         	// +usage=If addRevisionLabel is true, the revision label will be added to the underlying pods
         	addRevisionLabel: *false | bool
 
-        	// +usage=Commands to run in the container
-        	cmd?: [...string]
+        	// +usage=Arguments to run the aplication
+        	args?: [...string]
 
         	// +usage=Define arguments by using environment variables
         	env?: [...{
