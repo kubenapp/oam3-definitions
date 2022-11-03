@@ -209,12 +209,7 @@ spec:
         							{
         								containerPort: v.port
         								protocol:      "TCP"
-        								if v.name != _|_ {
-        									name: v.name
-        								}
-        								if v.name == _|_ {
-        									name: "port-" + strconv.FormatInt(v.port, 10)
-        								}
+        								name:          "port-" + strconv.FormatInt(v.port, 10)
         							}}]
         					}
 
@@ -267,27 +262,49 @@ spec:
         		}
         	}
         }
-        exposePorts: [
-        	for v in parameter.ports {
-        		port:       v.port
-        		targetPort: v.port
-        		if v.name != _|_ {
-        			name: v.name
-        		}
-        		if v.name == _|_ {
-        			name: "port-" + strconv.FormatInt(v.port, 10)
-        		}
-        	},
-        ]
+        totalPorts: {
+        	exposePorts: *[
+        			for v in parameter.ports {
+        			port:       v.port
+        			targetPort: v.port
+        			name:       "port-" + strconv.FormatInt(v.port, 10)
+        		},
+        	] | []
+
+        	exposeIngressesPorts: *[
+        				for v in parameter.ingresses {
+        			port:       v.targetPort
+        			targetPort: v.targetPort
+        			name:       "port-" + strconv.FormatInt(v.targetPort, 10)
+        		},
+        	] | []
+        }
         outputs: {
-        	if len(exposePorts) != 0 {
+        	if len(totalPorts.exposePorts)+len(totalPorts.exposeIngressesPorts) != 0 {
         		serviceExpose: {
         			apiVersion: "v1"
         			kind:       "Service"
         			metadata: name: context.name
         			spec: {
         				selector: "app.oam.dev/component": context.name
-        				ports: exposePorts
+        				ports: totalPorts.exposePorts + totalPorts.exposeIngressesPorts
+        			}
+        		}
+        	}
+        	if parameter["ingresses"] != _|_ {
+        		for v, i in parameter.ingresses {
+        			"objects-\(i.targetPort)": {
+        				apiVersion: "core.napptive.com/v1alpha1"
+        				kind:       "Ingress"
+        				metadata: name: context.name + "-" + strconv.FormatInt(i.targetPort, 10)
+        				spec: {
+        					selector: "app.oam.dev/component": context.name
+        					name:              context.name + "-" + strconv.FormatInt(i.targetPort, 10)
+        					path:              "/"
+        					port:              i.targetPort
+        					protocol:          "HTTP"
+        					targetServiceName: context.name
+        				}
         			}
         		}
         	}
@@ -319,10 +336,13 @@ spec:
         	ports?: [...{
         		// +usage=Number of port to expose on the pod's IP address
         		port: int
-        		// +usage=Name of the port
-        		name?: string
         	}]
 
+        	// +usage=Which ports do you want to expone externally
+        	ingresses?: [...{
+        		// +usage=Number of port to expose
+        		targetPort: int
+        	}]
         	// +ignore
         	// +usage=If addRevisionLabel is true, the revision label will be added to the underlying pods
         	addRevisionLabel: *false | bool
