@@ -166,44 +166,31 @@ spec:
         	] | []
         }
         exposePortsMap: {
-        	for v in parameter.ports {
-        		v: "true"
+        	for v in parameter.ports {        		
+        		"\(v.port)" : v.port,
         	}
+        	for v in parameter.ingresses {        		
+        		"\(v.targetPort)" : v.targetPort,
+        	}					
         }
         totalPorts: {
         	exposePorts: *[
-        			for v in parameter.ports {
-        			port:       v.port
-        			targetPort: v.port
-        			name:       "port-" + strconv.FormatInt(v.port, 10)
-        		},
-        	] | []
-
-        	exposeIngressesPorts: *[
-        				for v in parameter.ingresses {
-        			if exposePortsMap[v.targetPort] == _|_ {
-        				port:       v.targetPort
-        				targetPort: v.targetPort
-        				name:       "port-" + strconv.FormatInt(v.targetPort, 10)
+        			for k, v in exposePortsMap {
+        			{
+        			  port:       v
+        			  targetPort: v
+        			  name:       "port-" + k
         			}
         		},
         	] | []
         }
         containerPorts: {
         	exposePorts: *[
-        			for v in parameter.ports {
-        			containerPort: v.port
-        			protocol:      "TCP"
-        			name:          "port-" + strconv.FormatInt(v.port, 10)
-        		},
-        	] | []
-
-        	exposeIngressesPorts: *[
-        				for v in parameter.ingresses {
-        			if exposePortsMap[v.targetPort] == _|_ {
-        				containerPort: v.targetPort
-        				protocol:      "TCP"
-        				name:          "port-" + strconv.FormatInt(v.targetPort, 10)
+        			for k, v in exposePortsMap {
+        			{
+        			  containerPort: v
+        			  protocol:      "TCP"
+        			  name:          "port-" + k
         			}
         		},
         	] | []
@@ -247,7 +234,7 @@ spec:
         						image: "napptive/playground-launcher-nodejs:18-v1.0.0"
         					}
         					if parameter["ports"] != _|_ || parameter["ingresses"] != _|_ {
-        						ports: containerPorts.exposePorts + containerPorts.exposeIngressesPorts
+        						ports: containerPorts.exposePorts  
         					}
 
         					if parameter["env"] != _|_ {
@@ -300,14 +287,14 @@ spec:
         	}
         }
         outputs: {
-        	if len(totalPorts.exposePorts)+len(totalPorts.exposeIngressesPorts) != 0 {
+        	if parameter["ports"] != _|_ || parameter["ingresses"] != _|_ {
         		serviceExpose: {
         			apiVersion: "v1"
         			kind:       "Service"
         			metadata: name: context.name
         			spec: {
         				selector: "app.oam.dev/component": context.name
-        				ports: totalPorts.exposePorts + totalPorts.exposeIngressesPorts
+        				ports: totalPorts.exposePorts
         			}
         		}
         	}
@@ -328,7 +315,7 @@ spec:
         			}
         		}
         	}
-        }
+        }       
         parameter: {
         	// +usage=Specify the labels in the workload
         	labels?: [string]: string
