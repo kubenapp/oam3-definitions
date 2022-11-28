@@ -96,16 +96,7 @@ spec:
         				name:      v.name
         			}
         		},
-        	] | []
-
-        	hostPath: *[
-        			for v in parameter.volumeMounts.hostPath {
-        			{
-        				mountPath: v.mountPath
-        				name:      v.name
-        			}
-        		},
-        	] | []
+        	] | []        	
         }
         volumesArray: {
         	pvc: *[
@@ -152,15 +143,6 @@ spec:
         			{
         				name: v.name
         				emptyDir: medium: v.medium
-        			}
-        		},
-        	] | []
-
-        	hostPath: *[
-        			for v in parameter.volumeMounts.hostPath {
-        			{
-        				name: v.name
-        				hostPath: path: v.path
         			}
         		},
         	] | []
@@ -221,16 +203,16 @@ spec:
         			spec: {
         				containers: [{
         					name: context.name
-        					if parameter["language"] == "STATIC" || parameter["language"] == "static" {
+        					if strings.ToLower(parameter["language"]) == "static" {
         						image: "napptive/playground-launcher-static-nginx:1.23-v1.0.0"
         					}
-        					if parameter["language"] == "GOLANG" || parameter["language"] == "golang" {
+        					if strings.ToLower(parameter["language"]) == "golang" || strings.ToLower(parameter["language"]) == "go"{
         						image: "napptive/playground-launcher-golang:1.18-v1.0.0"
         					}
-        					if parameter["language"] == "PYTHON" || parameter["language"] == "static" {
+        					if strings.ToLower(parameter["language"]) == "python" {
         						image: "napptive/playground-launcher-python:3.11-v1.0.0"
         					}
-        					if parameter["language"] == "NODEJS" || parameter["language"] == "nodejs" {
+        					if strings.ToLower(parameter["language"]) == "nodejs" {
         						image: "napptive/playground-launcher-nodejs:18-v1.0.0"
         					}
         					if parameter["ports"] != _|_ || parameter["ingresses"] != _|_ {
@@ -261,7 +243,7 @@ spec:
         					}
 
         					if parameter["volumeMounts"] != _|_ {
-        						volumeMounts: mountsArray.pvc + mountsArray.configMap + mountsArray.secret + mountsArray.emptyDir + mountsArray.hostPath
+        						volumeMounts: mountsArray.pvc + mountsArray.configMap + mountsArray.secret + mountsArray.emptyDir 
         					}
 
         					if parameter["livenessProbe"] != _|_ {
@@ -274,13 +256,8 @@ spec:
 
         				}]
 
-        				if parameter["hostAliases"] != _|_ {
-        					// +patchKey=ip
-        					hostAliases: parameter.hostAliases
-        				}
-
         				if parameter["volumeMounts"] != _|_ {
-        					volumes: volumesArray.pvc + volumesArray.configMap + volumesArray.secret + volumesArray.emptyDir + volumesArray.hostPath
+        					volumes: volumesArray.pvc + volumesArray.configMap + volumesArray.secret + volumesArray.emptyDir 
         				}
         			}
         		}
@@ -335,8 +312,8 @@ spec:
         	//+usage the path of a file in the repo that contains a workflow
         	currentWorkflow?: string
 
-        	// +usage=application language
-        	language: *"GOLANG" | "golang" | "STATIC" | "static" | "PYTHON" | "python" | "NODEJS" | "nodejs"
+        	// +usage=application language. Must be "static", "python", "nodejs" or"golang"
+        	language: *"static"  | string
 
         	// +usage=Which ports do you want customer traffic sent to, defaults to 80
         	ports?: [...{
@@ -344,7 +321,7 @@ spec:
         		port: int
         	}]
 
-        	// +usage=Which ports do you want to expone externally
+        	// +usage=Which ports do you want to expose externally
         	ingresses?: [...{
         		// +usage=Number of port to expose
         		targetPort: int
@@ -353,7 +330,7 @@ spec:
         	// +usage=If addRevisionLabel is true, the revision label will be added to the underlying pods
         	addRevisionLabel: *false | bool
 
-        	// +usage=Arguments to run the aplication
+        	// +usage=Arguments to run the application
         	args?: [...string]
 
         	// +usage=Define arguments by using environment variables
@@ -425,12 +402,6 @@ spec:
         			mountPath: string
         			medium:    *"" | "Memory"
         		}]
-        		// +usage=Mount HostPath type volume
-        		hostPath?: [...{
-        			name:      string
-        			mountPath: string
-        			path:      string
-        		}]
         	}
 
         	// +usage=Instructions for assessing whether the container is alive.
@@ -439,11 +410,6 @@ spec:
         	// +usage=Instructions for assessing whether the container is in a suitable state to serve traffic.
         	readinessProbe?: #HealthProbe
 
-        	// +usage=Specify the hostAliases to add
-        	hostAliases?: [...{
-        		ip: string
-        		hostnames: [...string]
-        	}]
         }
         #HealthProbe: {
 
