@@ -60,6 +60,16 @@ spec:
         			value: ""
         		}
         	},
+        	{
+        		name: "LAUNCHER_MAIN_FILE_PATH"
+        		if parameter.mainPath != _|_ {
+        			value: parameter.mainPath
+        		}
+        		if parameter.mainPath == _|_ {
+        			value: ""
+        		}
+        	},
+
         ]
         mountsArray: {
         	pvc: *[
@@ -308,6 +318,9 @@ spec:
         	// username: with the GitHub username
         	// pat: with a GitHub Personal Access Token
         	repositoryAccessTokenSecret?: string
+          
+          // +usage=main file path
+          mainPath?: string
 
         	//+usage the path of a file in the repo that contains a workflow
         	currentWorkflow?: string
