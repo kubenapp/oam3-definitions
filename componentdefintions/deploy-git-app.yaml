@@ -319,8 +319,8 @@ spec:
         	// pat: with a GitHub Personal Access Token
         	repositoryAccessTokenSecret?: string
           
-          // +usage=main file path
-          mainPath?: string
+            // +usage=main file path
+            mainPath?: string
 
         	//+usage the path of a file in the repo that contains a workflow
         	currentWorkflow?: string
