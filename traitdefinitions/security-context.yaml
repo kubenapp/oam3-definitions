@@ -3,7 +3,7 @@ apiVersion: core.oam.dev/v1beta1
 kind: TraitDefinition
 metadata:
   annotations:
-    definition.oam.dev/description: Add security context on K8s pod for your workload which follows the pod spec in path 'spec.template.'
+    definition.oam.dev/description: Specify the security context for the containers that will be deployed on Kubernetes. This trait modifies the underlying pod spec in the 'spec.template.'  path.
   labels:
     custom.definition.oam.dev/ui-hidden: "true"
   name: security-context
