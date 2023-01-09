@@ -26,7 +26,7 @@ spec:
         	}
         }
         parameter: {
-            // +usage=Specify user ID to run the processes with.
+            // +usage=Sets the user ID that will be used to execute the container processes.
         	runAsUser?:  number
             // +usage=Specify primary group ID to run the processes with.
         	runAsGroup?: number
