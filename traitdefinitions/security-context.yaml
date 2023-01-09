@@ -30,7 +30,7 @@ spec:
         	runAsUser?:  number
             // +usage=Sets the group ID that will be used to execute the container processes.
         	runAsGroup?: number
-            // +usage=Specify the owner group ID for volumes
+            // +usage=Sets the group ID that will be the owner for the volumes mounted on the containers.
         	fsGroup?:    number
         }
 
