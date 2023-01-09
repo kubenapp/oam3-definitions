@@ -28,7 +28,7 @@ spec:
         parameter: {
             // +usage=Sets the user ID that will be used to execute the container processes.
         	runAsUser?:  number
-            // +usage=Specify primary group ID to run the processes with.
+            // +usage=Sets the group ID that will be used to execute the container processes.
         	runAsGroup?: number
             // +usage=Specify the owner group ID for volumes
         	fsGroup?:    number
