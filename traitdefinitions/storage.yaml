@@ -175,18 +175,24 @@ spec:
         	},
         ]
         patch: spec: template: spec: {
-        	// +patchKey=name
-        	volumes: deDupVolumesArray
+        	if len(deDupVolumesArray) != 0 {
+        	  // +patchKey=name
+        	  volumes: deDupVolumesArray
+            }
 
         	containers: [{
         		if len(configMapEnvMountsList + secretEnvMountsList + configMountToEnvsList + secretMountToEnvsList) != 0 {
         			// +patchKey=name
         			env: configMapEnvMountsList + secretEnvMountsList + configMountToEnvsList + secretMountToEnvsList
         		}
-        		// +patchKey=name
-        		volumeDevices: volumeDevicesList
-        		// +patchKey=name
-        		volumeMounts: pvcVolumeMountsList + configMapVolumeMountsList + secretVolumeMountsList + emptyDirVolumeMountsList
+                if len(volumeDevicesList) != 0 {
+        		   // +patchKey=name
+        		   volumeDevices: volumeDevicesList
+                 }
+                if len(pvcVolumeMountsList + configMapVolumeMountsList + secretVolumeMountsList + emptyDirVolumeMountsList) != 0 {
+             	   // +patchKey=name
+        		   volumeMounts: pvcVolumeMountsList + configMapVolumeMountsList + secretVolumeMountsList + emptyDirVolumeMountsList
+                }
         	}, ...]
 
         }
