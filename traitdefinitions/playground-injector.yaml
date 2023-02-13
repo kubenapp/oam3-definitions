@@ -1,0 +1,71 @@
+
+apiVersion: core.oam.dev/v1beta1
+kind: TraitDefinition
+metadata:
+  annotations:
+    definition.oam.dev/description: Inject the playground CLI
+  labels:
+    custom.definition.oam.dev/ui-hidden: "true"
+  name: playground-injector
+spec:
+  appliesToWorkloads:
+    - deployments.apps
+  podDisruptive: true
+  schematic:
+    cue:
+      template: |
+        patch: spec: template: spec: {
+        	// +patchKey=name
+        	containers: [{
+              name: context.name
+              if parameter.pat != _|_ {
+                env:[{
+                    name: "PLAYGROUND_PAT"
+                    value: parameter.pat
+                }]
+              }
+              // +patchKey=name
+              volumeMounts: [{
+                name:      "workdir"
+                mountPath: "/usr/local/bin/playground"
+                subPath: "playground"
+              }]
+        	}]
+            // +patchKey=name
+        	initContainers: [{
+              name:  context.name + "-playground"
+              image: "alpine:3.15"
+              imagePullPolicy: "IfNotPresent"
+              command:["sh", "-c"]
+              if parameter.version != _|_ {
+              env:[{
+                  name: "VERSION"
+                  value: parameter.version
+              }]
+              }
+              if parameter.version == _|_ {
+                args: ["echo Downloading version ...; wget -O version https://storage.googleapis.com/artifacts.playground.napptive.dev/version; VERSION=\"$(cat ./version)\"; echo Downloading playground ${VERSION}; wget -O ./playground_${VERSION}.tgz https://storage.googleapis.com/artifacts.playground.napptive.dev/linux/playground/playground_${VERSION}.tgz; tar zxvf  ./playground_${VERSION}.tgz; mv ./playground/playground /work-dir/"]
+              }
+              if parameter.version != _|_ {
+                args: ["echo Downloading playground ${VERSION}; wget -O ./playground_${VERSION}.tgz https://storage.googleapis.com/artifacts.playground.napptive.dev/linux/playground/playground_${VERSION}.tgz; tar zxvf  ./playground_${VERSION}.tgz; mv ./playground/playground /work-dir/"]
+              }
+              // +patchKey=name
+              volumeMounts: [{
+                  name:      "workdir"
+                  mountPath: "/work-dir"
+              }]
+        	}]
+            // +patchKey=name
+            volumes: [{
+              name: "workdir"
+              emptyDir: {}
+          }]
+        }
+        parameter: {
+          // +usage=Personal Access Token
+          pat?: string
+          // +usage: playground cli version v4.4.0, etc. Latest by default
+          version?: string 
+        
+        }
+
