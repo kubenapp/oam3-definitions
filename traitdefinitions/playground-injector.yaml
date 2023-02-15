@@ -65,7 +65,7 @@ spec:
         parameter: {
           // +usage=Personal Access Token
           pat?: string
-          // +usage: playground cli version v4.4.0, etc. Latest by default
+          // +usage: Define the playground CLI version. For example, v4.4.0. If not set the latest version will be used.
           version?: string 
         
         }
