@@ -133,7 +133,7 @@ spec:
           }
         	spec: {
         		selector: matchLabels: app: context.name
-            serviceName: context.name  
+            serviceName: context.name + "-headless" 
             replicas: parameter.replicas          
         		template: {
         			metadata: {
