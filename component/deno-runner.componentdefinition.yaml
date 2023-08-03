@@ -1,0 +1,233 @@
+# Based on https://github.com/bhavyastar/Napptive-OAM
+# OAM component to run deno code from a given Git repository through a launcher container.
+apiVersion: core.oam.dev/v1beta1
+kind: ComponentDefinition
+metadata:
+  annotations:
+    definition.oam.dev/description: Component to deploy a deno application from a git repository.
+  name: deno-runner
+spec:
+  schematic:
+    cue:
+      template: |
+        envs: [
+          {
+            name:  "REPO_URL"
+            value: parameter.repoUrl
+          },
+          {
+            name:  "ALLOW_NET"
+            if parameter["allowNet"] != _|_ {
+                value: "true"
+            }
+            if parameter["allowNet"] == _|_ {
+                value: ""
+            }
+          },
+          {
+            name:  "ALLOW_SYS"
+            if parameter["allowSys"] != _|_ {
+                value: "true"
+            }
+            if parameter["allowSys"] == _|_ {
+                value: ""
+            }
+          },
+          {
+            name:  "ALLOW_ENV"
+            if parameter["allowEnv"] != _|_ {
+                value: "true"
+            }
+            if parameter["allowEnv"] == _|_ {
+                value: ""
+            }
+          },
+          {
+            name:  "ALLOW_HRTIME"
+            if parameter["allowhrTime"] != _|_ {
+                value: "true"
+            }
+            if parameter["allowhrTime"] == _|_ {
+                value: ""
+            }
+          },
+          {
+            name:  "ALLOW_FFI"
+            if parameter["allowFfi"] != _|_ {
+                value: "true"
+            }
+            if parameter["allowFfi"] == _|_ {
+                value: ""
+            }
+          },
+          {
+            name:  "ALLOW_READ"
+            if parameter["allowRead"] != _|_ {
+                value: "true"
+            }
+            if parameter["allowRead"] == _|_ {
+                value: ""
+            }
+          },
+          {
+            name:  "ALLOW_WRITE"
+            if parameter["allowWrite"] != _|_ {
+                value: "true"
+            }
+            if parameter["allowWrite"] == _|_ {
+                value: ""
+            }
+          },
+          {
+            name:  "ALLOW_RUN"
+            if parameter["allowRun"] != _|_ {
+                value: "true"
+            }
+            if parameter["allowRun"] == _|_ {
+                value: ""
+            }
+          },
+          {
+            name:  "ALLOW_All"
+            if parameter["allowAll"] != _|_ {
+                value: "true"
+            }
+            if parameter["allowAll"] == _|_ {
+                value: ""
+            }
+          },
+          {
+            name:  "DENO_PATH"
+            if parameter["denoPath"] != _|_ {
+                value: parameter.denoPath
+            }
+            if parameter["denoPath"] == _|_ {
+                value: ""
+            }
+          },
+          {
+            name:  "ENTRYPOINT"
+            value: parameter.entryPoint
+          }
+        ]
+        exposePortsMap: {
+          for v in parameter.ports {
+                    "\(v.port)" : v.port,
+          }
+          for v in parameter.ingresses {
+                      "\(v.targetPort)" : v.targetPort,
+          }
+        }
+        totalPorts: {
+          exposePorts: *[
+              for k, v in exposePortsMap {
+              {
+                port:       v
+                targetPort: v
+                name:       "port-" + k
+              }
+            },
+          ] | []
+        }
+        containerPorts: {
+          exposePorts: *[
+              for k, v in exposePortsMap {
+              {
+                containerPort: v
+                protocol:      "TCP"
+                name:          "port-" + k
+              }
+            },
+          ] | []
+        }
+        output: {
+          apiVersion: "apps/v1"
+          kind:       "Deployment"
+          spec: {
+            selector: matchLabels: { "app.oam.dev/component": context.name }
+            template: {
+              metadata: labels: {
+                "app.oam.dev/name":      context.appName
+                "app.oam.dev/component": context.name
+              }
+              spec: {
+                containers: [{
+                  name:  context.name
+                  image: "napptive/deno-runner:1.35.3"
+                  ports: containerPorts.exposePorts
+                  env: envs
+                }]
+              }
+            }
+          }
+        }
+        outputs: {
+          if parameter["ports"] != _|_ || parameter["ingresses"] != _|_ {
+            serviceExpose: {
+              apiVersion: "v1"
+              kind:       "Service"
+              metadata: name: context.name
+              spec: {
+                      selector: "app.oam.dev/component": context.name
+                      ports: totalPorts.exposePorts
+              }
+            }
+          }
+          if parameter["ingresses"] != _|_ {
+            for v, i in parameter.ingresses {
+              "objects-\(i.targetPort)": {
+                  apiVersion: "core.napptive.com/v1alpha1"
+                  kind:       "Ingress"
+                  metadata: name: context.name
+                  spec: {
+                          selector: "app.oam.dev/component": context.name
+                          path:              "/"
+                          port:              i.targetPort
+                          protocol:          "HTTP"
+                          targetServiceName: context.name
+                  }
+              }
+            }
+          }
+        }
+        parameter: {
+          // +usage=URL of the git repository
+          repoUrl:       string
+           // +usage=Deno path indicates the path inside the repository where the deno code is found and should be used as working directory
+          denoPath?:       string
+          // +usage=Which ports expect incoming traffic
+          ports: [...{
+            // +usage=Port to be exposed to accept incoming traffic in the environment
+            port: int
+          }]
+          // +usage=Allow network access
+          allowNet?: string
+          // +usage=Allow access to APIs that provide information about user’s operating system
+          allowSys?: string
+          // +usage=Allow environment access for things like getting and setting of environment variables
+          allowEnv?: string
+          // +usage=Allow high-resolution time measurement
+          allowhrTime?: string
+          // +usage=Allow loading of dynamic libraries
+          allowFfi?: string
+          // +usage=Allow file system read access
+          allowRead?: string
+          // +usage=Allow file system write access
+          allowWrite?: string
+          // +usage=Allow running subprocesses
+          allowRun?: string
+          // +usage=Allow all permissions
+          allowAll?: string
+          // +usage=File that must be passed to the deno run command as argument
+          entryPoint: string
+          // +usage=Which ports do you want to expose externally
+          ingresses: [...{
+            // +usage=Port to be exposed to the outside with an ingress
+            targetPort: int
+          }]
+        }
+  workload:
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+    type: deployments.apps
