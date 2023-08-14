@@ -12,17 +12,25 @@ fi
 # Set the default clone directory for the main GitHub repository
 MAIN_REPO_DIRECTORY="/tmp/main_repo"
 
-# Clone the main Git repository
-if [ -n "$GITHUB_TOKEN" ]; then
-  # Git Token provided, assuming the main repository is private
-  echo "Cloning a private Git main repository..."
-  git clone "$REPO_URL" "$MAIN_REPO_DIRECTORY"
-else
-  # Git Token not provided, assuming the main repository is public
-  echo "Cloning a public Git main repository..."
-  git clone --depth=1 "$REPO_URL" "$MAIN_REPO_DIRECTORY"
-fi
+# Check if GITHUB_TOKEN is not empty (private repository)
+if [[ -n $GITHUB_TOKEN ]]; then
+    if [[ -z $USER_NAME ]]; then
+      echo "USER_NAME environment variable is required with GITHUB_TOKEN to clone private repositories"
+      exit 1
+    fi
+    # Clone the private repository using the extracted credentials
+    echo "Cloning a private Git main repository..."
+    echo $REPO_URL >> config.txt
+    sed "s/github/$USER_NAME:$GITHUB_TOKEN@github/g" config.txt > updated_config.txt
+    export UPDATED_URL=$(cat updated_config.txt)
+    git clone --depth=1 "$UPDATED_URL" "$MAIN_REPO_DIRECTORY"
+    rm -rf config.txt updated_config.txt
 
+else
+    # Clone the public repository without credentials
+    echo "Cloning a public Git main repository..."
+    git clone --depth=1 $REPO_URL $MAIN_REPO_DIRECTORY
+fi
 # Set the default Deno code directory to the root of the cloned repository
 DENO_DIRECTORY_ABSOLUTE_PATH="$MAIN_REPO_DIRECTORY"
 
