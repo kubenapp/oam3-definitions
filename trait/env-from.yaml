@@ -5,6 +5,7 @@ metadata:
     definition.oam.dev/description: Mount a configmap as environment variables of a component
   labels:
     custom.definition.oam.dev/ui-hidden: "true"
+  namespace: vela-system
   name: env-from
 spec:
   appliesToWorkloads:
