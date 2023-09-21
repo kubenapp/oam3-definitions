@@ -2,7 +2,7 @@ apiVersion: core.oam.dev/v1beta1
 kind: TraitDefinition
 metadata:
   annotations:
-    definition.oam.dev/description: Mount a configmap as environment variables of a component
+    definition.oam.dev/description: Mount configmaps/secrets as environment variables of a component
   labels:
     custom.definition.oam.dev/ui-hidden: "true"
   namespace: vela-system
