@@ -1,0 +1,61 @@
+apiVersion: core.oam.dev/v1beta1
+kind: TraitDefinition
+metadata:
+  annotations:
+    definition.oam.dev/description: Mount configmaps/secrets as environment variables of a component
+  labels:
+    custom.definition.oam.dev/ui-hidden: "true"
+  namespace: vela-system
+  name: env-from
+spec:
+  appliesToWorkloads:
+    - deployments.apps
+    - statefulsets.apps
+    - jobs.batch
+  podDisruptive: true
+  schematic:
+    cue:
+      template: |
+        envFromCM: *[
+          for k, v in parameter.configmapName {
+          {
+            configMapRef:{
+              name: v
+            }          
+          }
+          },
+        ] | []
+        envFromSecret: *[
+          for k, v in parameter.secretName {
+          {
+            secretRef:{
+              name: v
+            }          
+          }
+          },
+        ] | []
+        patch: {
+          spec: template: spec: {
+            // +patchKey=name
+            containers: [{
+              if parameter.containerName != _|_ {
+        		name: parameter.containerName
+        	  }
+              if parameter.containerName == _|_ {
+        		name: context.name
+        	  }
+              envFrom: envFromCM + envFromSecret
+            }]
+          }
+        } 
+        parameter: {
+            // +usage=Specify the name of the target container, if not set, use the component name
+            containerName?: string
+        
+            // +usage=Specify the name of the configmap to be mounted as env vars
+        	configmapName?: [...string]
+
+        	// +usage=Specify the name of the secret to be mounted as env vars
+        	secretName?: [...string]
+        
+        }
