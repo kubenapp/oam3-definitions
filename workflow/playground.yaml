@@ -1,0 +1,117 @@
+apiVersion: core.oam.dev/v1beta1
+kind: WorkflowStepDefinition
+metadata:
+  annotations:
+    custom.definition.oam.dev/category: Scripts & Commands
+    definition.oam.dev/description: Perform actions directly with the Napptive CLI
+  name: playground
+  namespace: vela-system
+spec:
+  schematic:
+    cue:
+      template: |
+        import (
+        	"vela/op"
+        )
+        
+        data: {
+            if parameter.config.configMap != _|_ {
+              if parameter.config.entry != _|_ {
+                value: "/temp/installation/\(parameter.config.entry)"
+              }
+              if parameter.config.entry == _|_ {
+                value: "/temp/installation/.playground.yaml"
+              }              
+            }
+            if parameter.config.configMap == _|_ {
+              value: ""
+            }
+            if parameter.name != _|_ {
+              name: parameter.name
+            }
+            if parameter.name == _|_ {
+              name: "step"
+            }
+        }
+
+        apply: op.#Apply & {
+        	value: {
+        		apiVersion: "batch/v1"
+        		kind:       "Job"
+        		metadata: {
+        			name: "\(context.name)-\(data.name)"
+        			namespace: context.namespace        			
+        		}
+        		spec: {
+        			backoffLimit: 3
+        			template: {
+        				spec: {
+        					containers: [
+        						{
+        							name:         "\(context.name)-\(data.name)"
+        							image:        "napptive/playground-action:v6.1.0"
+        							args:         [ "false", parameter.command, parameter.environmentName, data.value ]
+                                    if parameter.pat.secretName != _|_ {
+                                      envFrom: [
+                                        {
+                                          secretRef: {
+                                            name: parameter.pat.secretName
+                                          }                                  
+                                        }
+                                      ],
+                                    }     
+                                    if parameter.pat.value != _|_ {
+                                      env: [
+                                        {                                          
+                                            name: "PLAYGROUND_PAT"
+                                            value: parameter.pat.value
+                                        }
+                                      ],
+                                    }
+                                    if parameter.config != _|_ {
+                                      volumeMounts: [
+                                        {
+                                          name: "installation" 
+                                          mountPath: "/temp/installation"                                  
+                                        }
+                                      ],
+                                    }
+        						},
+        					]
+                            if parameter.config != _|_ {
+                              volumes: [
+                                {
+                                  name: "installation" 
+                                  configMap: {
+                                    name: "\(parameter.config.configMap)"
+                                  }                                  
+                                }
+                              ],
+                            }
+        					restartPolicy:  "Never"        					
+        				}
+        			}
+        		}
+        	}
+        }
+
+        parameter: {
+            // +usage=Specify a unique name for this type of step (required when there is more than one step of this type in the workflow)
+            name?: string
+        	// +usage=Specify the playground command
+        	command: string            
+            pat:{
+              // +usage=Specify the secret where the PLAYGROUND_PAT env is stored
+              secretName?: string
+              // +usage=Specify the PLAYGROUND_PAT value
+              value?: string
+            }            
+            config?:{
+              // usage=Specify the configMap where the playground installations file is stored
+              configMap: string
+              // usage=Specify the cm entry (.playground.yaml by default)
+              entry?: string
+            }
+            // usage=Specify the environment where the command is executed
+            environmentName: *"" | string
+        }
