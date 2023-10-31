@@ -14,20 +14,21 @@ spec:
   schematic:
     cue:
       template: |
-        // +patchStrategy=jsonMergePatch
-        patch: spec: {
-            if context.output.apiVersion == "apps/v1" && context.output.kind == "Deployment" {              
-              replicas: 0
-            }
-            if context.output.apiVersion == "apps/v1" && context.output.kind == "StatefulSet" {              
-              replicas: 0
-            }
-            if context.output.apiVersion == "batch/v1" && context.output.kind == "Job" {                          
-              parallelism: 0
-            }
-            if context.output.apiVersion == "batch/v1" && context.output.kind == "CronJob" {                          
-              suspend: true
-            }
+        if context.output.apiVersion == "apps/v1" && context.output.kind == "Deployment" {
+          // +patchStrategy=retainKeys
+          patch: spec: replicas: 0
+        }
+        if context.output.apiVersion == "apps/v1" && context.output.kind == "StatefulSet" {
+          // +patchStrategy=retainKeys
+          patch: spec: replicas: 0
+        }
+        if context.output.apiVersion == "batch/v1" && context.output.kind == "Job" {
+          // +patchStrategy=retainKeys
+          patch: spec: parallelism: 0
+        }
+        if context.output.apiVersion == "batch/v1" && context.output.kind == "CronJob" {
+          // +patchStrategy=retainKeys
+          patch: spec: suspend: true
         }
   status:
     customStatus: |-
